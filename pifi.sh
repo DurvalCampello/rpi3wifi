@@ -90,10 +90,10 @@ fi
  # Added by rPi Access Point Setup
  allow-hotplug wlan0
  iface wlan0 inet static
-     address 10.0.0.1
+     address 192.168.42.1
      netmask 255.255.255.0
-     network 10.0.0.0
-     broadcast 10.0.0.255
+     network 192.168.42.0
+     broadcast 192.168.42.255
  EOF
  
  echo "denyinterfaces wlan0" >> /etc/dhcpcd.conf
@@ -102,28 +102,3 @@ fi
  
  echo "All done! Please reboot"
  
-
-
-echo "$(tput setaf 6)Checking hostapd status...$(tput sgr0)"
-service hostapd status
-hostapd_result=$?
-
-#if [ $hostapd_result == 3 ]; then
-#  echo "ERROR: hostapd start failed."
-#  exit 1
-#fi
-
-echo "$(tput setaf 6)Checking ISC DHCP server status...$(tput sgr0)"
-service isc-dhcp-server status
-dhcp_result=$?
-    
-#if [ $dhcp_result == 3 ]; then
-#  echo "ERROR: ISC DHCP server failed to start."
-#  exit 1
-#fi
-
-
-echo "$(tput setaf 6)Rebooting...$(tput sgr0)"
-reboot
-
-exit 0
