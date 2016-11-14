@@ -89,6 +89,94 @@ DAEMON_CONF="/etc/hostapd/hostapd.conf"
 #
 #DAEMON_OPTS=""
 EOF
+
+cat >/etc/sysctl.conf <<EOF
+#
+# /etc/sysctl.conf - Configuration file for setting system variables
+# See /etc/sysctl.d/ for additional system variables.
+# See sysctl.conf (5) for information.
+#
+
+#kernel.domainname = example.com
+
+# Uncomment the following to stop low-level messages on console
+#kernel.printk = 3 4 1 3
+
+##############################################################3
+# Functions previously found in netbase
+#
+
+# Uncomment the next two lines to enable Spoof protection (reverse-path filter)
+# Turn on Source Address Verification in all interfaces to
+# prevent some spoofing attacks
+#net.ipv4.conf.default.rp_filter=1
+#net.ipv4.conf.all.rp_filter=1
+
+# Uncomment the next line to enable TCP/IP SYN cookies
+# See http://lwn.net/Articles/277146/
+# Note: This may impact IPv6 TCP sessions too
+#net.ipv4.tcp_syncookies=1
+
+# Uncomment the next line to enable packet forwarding for IPv4
+net.ipv4.ip_forward=1
+
+# Uncomment the next line to enable packet forwarding for IPv6
+#  Enabling this option disables Stateless Address Autoconfiguration
+#  based on Router Advertisements for this host
+#net.ipv6.conf.all.forwarding=1
+
+
+###################################################################
+# Additional settings - these settings can improve the network
+# security of the host and prevent against some network attacks
+# including spoofing attacks and man in the middle attacks through
+# redirection. Some network environments, however, require that these
+# settings are disabled so review and enable them as needed.
+#
+# Do not accept ICMP redirects (prevent MITM attacks)
+#net.ipv4.conf.all.accept_redirects = 0
+#net.ipv6.conf.all.accept_redirects = 0
+# _or_
+# Accept ICMP redirects only for gateways listed in our default
+# gateway list (enabled by default)
+# net.ipv4.conf.all.secure_redirects = 1
+#
+# Do not send ICMP redirects (we are not a router)
+#net.ipv4.conf.all.send_redirects = 0
+#
+# Do not accept IP source route packets (we are not a router)
+#net.ipv4.conf.all.accept_source_route = 0
+#net.ipv6.conf.all.accept_source_route = 0
+#
+# Log Martian Packets
+#net.ipv4.conf.all.log_martians = 1
+#
+
+EOF
+
+cat > /etc/rc.local <<EOF
+#!/bin/sh -e
+#
+# rc.local
+#
+# This script is executed at the end of each multiuser runlevel.
+# Make sure that the script will "exit 0" on success or any other
+# value on error.
+#
+# In order to enable or disable this script just change the execution
+# bits.
+#
+# By default this script does nothing.
+
+# Print the IP address
+_IP=$(hostname -I) || true
+if [ "$_IP" ]; then
+  printf "My IP address is %s\n" "$_IP"
+fi
+iptables-restore < /etc/iptables.ipv4.nat  
+exit 0
+EOF
+
 echo "$(tput setaf 6)DNSAmasq configurated.$(tput sgr0)"
 cat > /etc/dnsmasq.conf <<EOF
 interface=wlan0      # Use interface wlan0  
@@ -98,6 +186,38 @@ server=8.8.8.8       # Forward DNS requests to Google DNS
 domain-needed        # Don't forward short names  
 bogus-priv           # Never forward addresses in the non-routed address spaces.  
 dhcp-range=10.0.0.50,10.0.0.150,12h # Assign IP addresses between 172.24.1.50 and 172.24.1.150 with a 12 hour lease time  
+EOF
+
+cat > /lib/systemd/system/dnsmasq.service <<EOF
+[Unit]
+escription=dnsmasq - A lightweight DHCP and caching DNS server
+After=network-online.target
+wants=network-online.target
+
+[Service]
+Type=forking
+PIDFile=/var/run/dnsmasq/dnsmasq.pid
+
+# Test the config file and refuse starting if it is not valid.
+ExecStartPre=/usr/sbin/dnsmasq --test
+
+# We run dnsmasq via the /etc/init.d/dnsmasq script which acts as a
+# wrapper picking up extra configuration files and then execs dnsmasq
+# itself, when called with the "systemd-exec" function.
+ExecStart=/etc/init.d/dnsmasq systemd-exec
+
+# The systemd-*-resolvconf functions configure (and deconfigure)
+# resolvconf to work with the dnsmasq DNS server. They're called liek
+# this to get correct error handling (ie don't start-resolvconf if the
+# dnsmasq daemon fails to start.
+ExecStartPost=/etc/init.d/dnsmasq systemd-start-resolvconf
+ExecStop=/etc/init.d/dnsmasq systemd-stop-resolvconf
+
+
+ExecReload=/bin/kill -HUP $MAINPID
+
+[Install]
+WantedBy=multi-user.target
 EOF
 
 echo "$(tput setaf 6)Hostapad Configurated.$(tput sgr0)"
@@ -135,8 +255,12 @@ echo "denyinterfaces wlan0" >> /etc/dhcpcd.conf
 
 sudo iptables -t nat -A POSTROUTING -o eth0 -j MASQUERADE  
 sudo iptables -A FORWARD -i eth0 -o wlan0 -m state --state RELATED,ESTABLISHED -j ACCEPT  
-sudo iptables -A FORWARD -i wlan0 -o eth0 -j ACCEPT  
+sudo iptables -A FORWARD -i wlan0 -o eth0 -j ACCEPT
+  
+echo "$(tput setaf 6)Saving IP tables...$(tput sgr0)"
+sh -c "iptables-save > /etc/iptables.ipv4.nat"
 
 systemctl enable hostapd
 
-echo "All done! Please reboot"
+echo "All done! Rebooting now"
+reboot
