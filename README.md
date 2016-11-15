@@ -1,7 +1,7 @@
 # raspberry Pi 3 wifi
 A Script to make your raspberry pi 3 into a AP(Acess Point). You dont need nothing more,
  just execute this script and you will create a AP from your Raspberry PI 3.
-
+ ![Example](/img/Screenshot 2016-11-15 at 01.38.11.png)
 #How to use ?
 You just need type 
 ```
