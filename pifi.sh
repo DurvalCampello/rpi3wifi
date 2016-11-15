@@ -22,7 +22,7 @@ $(tput setaf 6)   \              $(tput setaf 1)'~'$(tput setaf 6)              
 $(tput bold ; tput setaf 4)            Raspberry PiFi$(tput sgr0)
 "
 
-echo "$(tput setaf 6)This script will configure your Raspberry Pi as a wireless access point.$(tput sgr0)"
+echo "$(tput setaf 6)This script will configure your Raspberry Pi 3 as a wireless access point.$(tput sgr0)"
 read -p "$(tput bold ; tput setaf 2)Press [Enter] to begin, [Ctrl-C] to abort...$(tput sgr0)"
 
 echo "$(tput setaf 6)Configuring hostapd...$(tput sgr0)"
